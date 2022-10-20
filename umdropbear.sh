@@ -21,7 +21,7 @@ while getopts ":k:l:z" o; do
   esac
 done
 
-dropbear_pids=$(grep 'Password auth succeeded' /var/log/messages | awk '{print $6","$14}' | sed "s/'//g;s/\[//g;s/]//g")
+dropbear_pids=$(grep 'Password auth succeeded' /var/log/messages | sed "s/'//g;s/\[//g;s/]//g" | awk '{print $6","$14","$16}')
 #dropbear_pids=$(journalctl -u dropbear.service | grep 'Password auth succeeded' | awk '{print $6","$14}' | sed "s/'//g;s/\[//g;s/]//g")
 dropbear_active_users=""
 dropbear_pcs=$(pidof dropbear)
@@ -29,9 +29,10 @@ dropbear_pcs=$(pidof dropbear)
 while IFS= read -r dropbear_pid; do
   pid=$(echo "${dropbear_pid}" | awk -F ',' '{print $1}')
   user=$(echo "${dropbear_pid}" | awk -F ',' '{print $2}')
+  ip=$(echo "${dropbear_pid}" | awk -F ',' '{print $3}')
   ps=$(echo "${dropbear_pcs}" | grep "${pid}" | grep -v grep)
   if [[ ! -z "${ps}" ]]; then
-    dropbear_active_users+="${user}"$'\t\t'"${pid}"$'\n'
+    dropbear_active_users+="${user}"$'\t\t'"${pid}"$'\t'"${ip}"$'\n'
   fi
 done <<< "${dropbear_pids}"
 
@@ -80,7 +81,7 @@ cat <<EOF
 ########################################
 #               Dropbear               #
 ########################################
-Username	PID
+Username	PID	IP
 ----------------------------------------
 ${dropbear_active_users}
 ----------------------------------------

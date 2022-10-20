@@ -21,7 +21,7 @@ while getopts ":k:l:z" o; do
   esac
 done
 
-openssh_pids=$(grep 'Accepted password for' /var/log/secure | awk '{print $5","$9}' | sed "s/sshd//g;s/://g;s/'//g;s/\[//g;s/]//g")
+openssh_pids=$(grep 'Accepted password for' /var/log/secure | sed "s/sshd//g;s/://g;s/'//g;s/\[//g;s/]//g" | awk '{print $5","$9","$11":"$13}')
 #openssh_pids=$(journalctl -u sshd.service | grep 'Accepted password for' | awk '{print $6","$14}' | sed "s/'//g;s/\[//g;s/]//g")
 openssh_active_users=""
 openssh_pcs=$(pidof sshd)
@@ -29,9 +29,10 @@ openssh_pcs=$(pidof sshd)
 while IFS= read -r openssh_pid; do
   pid=$(echo "${openssh_pid}" | awk -F ',' '{print $1}')
   user=$(echo "${openssh_pid}" | awk -F ',' '{print $2}')
+  ip=$(echo "${openssh_pid}" | awk -F ',' '{print $3}')
   ps=$(echo "${openssh_pcs}" | grep "${pid}" | grep -v grep)
   if [[ ! -z "${ps}" ]]; then
-    openssh_active_users+="${user}"$'\t\t'"${pid}"$'\n'
+    openssh_active_users+="${user}"$'\t\t'"${pid}"$'\t'"${ip}"$'\n'
   fi
 done <<< "${openssh_pids}"
 
@@ -80,7 +81,7 @@ cat <<EOF
 ########################################
 #                OpenSSH               #
 ########################################
-Username	PID
+Username	PID	IP
 ----------------------------------------
 ${openssh_active_users}
 ----------------------------------------
