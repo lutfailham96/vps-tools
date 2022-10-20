@@ -4,13 +4,16 @@ kill_users=""
 max_multi_login=1
 kill_multi_login=false
 
-while getopts ":k:z" o; do
+while getopts ":k:l:z" o; do
   case "${o}" in
     k)
       kill_users=${OPTARG}
       ;;
     z)
       kill_multi_login=true
+      ;;
+    l)
+      max_multi_login=${OPTARG}
       ;;
     #*)
     #  usage
