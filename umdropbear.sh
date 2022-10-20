@@ -58,6 +58,7 @@ dropbear_generate_active_users() {
   #dropbear_pcs="${dropbear_pcs}"
 
   while IFS= read -r dropbear_pid; do
+    dropbear_pid=$(grep 'Password auth succeeded' /var/log/messages | grep "\[${dropbear_pid}\]" | sed "s/'//g;s/\[//g;s/]//g" | awk '{print $6","$14","$16}')
     pid=$(echo "${dropbear_pid}" | awk -F ',' '{print $1}')
     user=$(echo "${dropbear_pid}" | awk -F ',' '{print $2}')
     ip=$(echo "${dropbear_pid}" | awk -F ',' '{print $3}')
@@ -66,6 +67,7 @@ dropbear_generate_active_users() {
       dropbear_active_users+="${user}"$'\t\t'"${pid}"$'\t'"${ip}"$'\n'
     fi
   done <<< "${dropbear_pids}"
+  dropbear_active_users=$(echo "${dropbear_active_users}" | sed '/^[[:space:]]*$/d')
 }
 
 dropbear_kill_user_sessions() {
@@ -141,6 +143,8 @@ dropbear_kill_multiple_logins() {
       group_id="${telegram_group_id}"
       message_text="Multiple Dropbear login user \[${machine_name}\]:\n${multiple_detected_users}"
       telegram_send_notification 2>&1 > /dev/null &
+    elif [[ -z "${multiple_detected_users}" ]]; then
+      echo "No multiple Dropbear login found"
     else
       echo "Cannot send to Telegram, please check Telegram setting"
     fi
@@ -150,7 +154,7 @@ dropbear_kill_multiple_logins() {
 dropbear_print_active_users() {
   #dropbear_active_users="${dropbear_active_users}"
 
-  dropbear_active_users=$(echo "${dropbear_active_users}" | sed '/^[[:space:]]*$/d' | sort)
+  dropbear_active_users=$(echo "${dropbear_active_users}" | sort)
   cat <<EOF
 ########################################
 #               Dropbear               #
@@ -169,7 +173,7 @@ dropbear_main() {
   kill_multi_login=false
   parse_args "${@}"
 
-  dropbear_pids=$(grep 'Password auth succeeded' /var/log/messages | sed "s/'//g;s/\[//g;s/]//g" | awk '{print $6","$14","$16}')
+  dropbear_pids=$(pidof dropbear | sed 's/ /\n/g' | sort | sed '1d')
   #dropbear_pids=$(journalctl -u dropbear.service | grep 'Password auth succeeded' | awk '{print $6","$14}' | sed "s/'//g;s/\[//g;s/]//g")
   dropbear_active_users=""
   dropbear_pcs=$(pidof dropbear)

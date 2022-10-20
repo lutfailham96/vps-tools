@@ -58,6 +58,7 @@ openssh_generate_active_users() {
   #openssh_pcs="${openssh_pcs}"
 
   while IFS= read -r openssh_pid; do
+    openssh_pid=$(grep 'Accepted password for' /var/log/secure | grep "\[${openssh_pid}\]" | sed "s/sshd//g;s/://g;s/'//g;s/\[//g;s/]//g" | awk '{print $5","$9","$11":"$13}')
     pid=$(echo "${openssh_pid}" | awk -F ',' '{print $1}')
     user=$(echo "${openssh_pid}" | awk -F ',' '{print $2}')
     ip=$(echo "${openssh_pid}" | awk -F ',' '{print $3}')
@@ -66,6 +67,7 @@ openssh_generate_active_users() {
       openssh_active_users+="${user}"$'\t\t'"${pid}"$'\t'"${ip}"$'\n'
     fi
   done <<< "${openssh_pids}"
+  openssh_active_users=$(echo "${openssh_active_users}" | sed '/^[[:space:]]*$/d')
 }
 
 openssh_kill_user_sessions() {
@@ -141,6 +143,8 @@ openssh_kill_multiple_logins() {
       group_id="${telegram_group_id}"
       message_text="Multiple OpenSSH login user \[${machine_name}\]:\n${multiple_detected_users}"
       telegram_send_notification 2>&1 > /dev/null &
+    elif [[ -z "${multiple_detected_users}" ]]; then
+      echo "No multiple OpenSSH login found"
     else
       echo "Cannot send to Telegram, please check Telegram setting"
     fi
@@ -150,7 +154,7 @@ openssh_kill_multiple_logins() {
 openssh_print_active_users() {
   #openssh_active_users="${openssh_active_users}"
 
-  openssh_active_users=$(echo "${openssh_active_users}" | sed '/^[[:space:]]*$/d' | sort)
+  openssh_active_users=$(echo "${openssh_active_users}" | sort)
   cat <<EOF
 ########################################
 #                OpenSSH               #
@@ -169,7 +173,7 @@ openssh_main() {
   kill_multi_login=false
   parse_args "${@}"
 
-  openssh_pids=$(grep 'Accepted password for' /var/log/secure | sed "s/sshd//g;s/://g;s/'//g;s/\[//g;s/]//g" | awk '{print $5","$9","$11":"$13}')
+  openssh_pids=$(pidof sshd | sed 's/ /\n/g' | sort | sed '1d')
   #openssh_pids=$(journalctl -u sshd.service | grep 'Accepted password for' | awk '{print $6","$14}' | sed "s/'//g;s/\[//g;s/]//g")
   openssh_active_users=""
   openssh_pcs=$(pidof sshd)
