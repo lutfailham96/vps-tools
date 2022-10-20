@@ -122,7 +122,7 @@ openssh_kill_multiple_logins() {
       login_user=$(echo "${login}" | awk '{print $2}')
       login_count=$(echo "${login}" | awk '{print $1}')
       if [[ ${login_count} > ${max_multi_login} ]]; then
-        echo "Multiple login detected from user: ${login_user}"
+        echo "Multiple OpenSSH login detected from user: ${login_user}"
 
         user="${login_user}"
         login_limit="${max_multi_login}"
@@ -135,11 +135,11 @@ openssh_kill_multiple_logins() {
 
     # Report multiple login to Telegram group
     if [[ ! -z "${telegram_bot_token}" && ! -z "${telegram_group_id}" && ! -z "${multiple_detected_users}" ]]; then
-      echo "Report multiple login user notification to Telegram ..."
+      echo "Report multiple OpenSSH login user notification to Telegram ..."
       machine_name=$(hostname)
       bot_token="${telegram_bot_token}"
       group_id="${telegram_group_id}"
-      message_text="Multiple login user \[${machine_name}\]:\n${multiple_detected_users}"
+      message_text="Multiple OpenSSH login user \[${machine_name}\]:\n${multiple_detected_users}"
       telegram_send_notification 2>&1 > /dev/null &
     else
       echo "Cannot send to Telegram, please check Telegram setting"
