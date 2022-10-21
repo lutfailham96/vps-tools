@@ -57,8 +57,23 @@ dropbear_generate_active_users() {
   #dropbear_pid="${dropbear_pid}"
   #dropbear_pcs="${dropbear_pcs}"
 
+  os_id=$(grep '^ID=' /etc/os-release | awk -F '=' '{print $2}' | sed 's/"//g')
+  os_version=$(grep '^VERSION_ID=' /etc/os-release | awk -F '=' '{print $2}' | sed 's/"//g')
+  case "${os_id}" in
+    "debian" | "ubuntu")
+      log_file="/var/log/auth.log"
+      log_filter="Password auth succeeded for"
+      log_sub_cmd='sed "s/dropbear\[/\[/g;s/'\''//g;s/\[//g;s/]//g;s/://g" | awk '\''{print $5","$10","$12}'\'''
+      ;;
+    "almalinux" | "centos" | "fedora")
+      log_file="/var/log/messages"
+      log_filter="Password auth succeeded"
+      log_sub_cmd='sed "s/'\''//g;s/\[//g;s/]//g" | awk '\''{print $6","$14","$16}'\'''
+      ;;
+  esac
   while IFS= read -r dropbear_pid; do
-    dropbear_pid=$(grep 'Password auth succeeded' /var/log/messages | grep "\[${dropbear_pid}\]" | sed "s/'//g;s/\[//g;s/]//g" | awk '{print $6","$14","$16}')
+    filter_cmd="grep \"${log_filter}\" \"${log_file}\" | grep \"\[${dropbear_pid}\]\" | ${log_sub_cmd}"
+    dropbear_pid=$(eval "${filter_cmd}")
     pid=$(echo "${dropbear_pid}" | awk -F ',' '{print $1}')
     user=$(echo "${dropbear_pid}" | awk -F ',' '{print $2}')
     ip=$(echo "${dropbear_pid}" | awk -F ',' '{print $3}')
