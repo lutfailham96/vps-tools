@@ -57,8 +57,23 @@ openssh_generate_active_users() {
   #openssh_pid="${openssh_pid}"
   #openssh_pcs="${openssh_pcs}"
 
+  os_id=$(grep '^ID=' /etc/os-release | awk -F '=' '{print $2}' | sed 's/"//g')
+  os_version=$(grep '^VERSION_ID=' /etc/os-release | awk -F '=' '{print $2}' | sed 's/"//g')
+  case "${os_id}" in
+    "debian" | "ubuntu")
+      log_file="/var/log/auth.log"
+      log_filter="Accepted keyboard-interactive/pam"
+      log_sub_cmd='sed "s/sshd//g;s/://g;s/'\''//g;s/\[//g;s/]//g" | awk '\''{print $5","$9","$11":"$13}'\'''
+      ;;
+    "almalinux" | "centos" | "fedora")
+      log_file="/var/log/secure"
+      log_filter="Accepted password for"
+      log_sub_cmd='sed "s/sshd//g;s/://g;s/'\''//g;s/\[//g;s/]//g" | awk '\''{print $5","$9","$11":"$13}'\'''
+      ;;
+  esac
   while IFS= read -r openssh_pid; do
-    openssh_pid=$(grep 'Accepted password for' /var/log/secure | grep "\[${openssh_pid}\]" | sed "s/sshd//g;s/://g;s/'//g;s/\[//g;s/]//g" | awk '{print $5","$9","$11":"$13}')
+    filter_cmd="grep \"${log_filter}\" \"${log_file}\" | grep \"\[${openssh_pid}\]\" | ${log_sub_cmd}"
+    openssh_pid=$(eval "${filter_cmd}")
     pid=$(echo "${openssh_pid}" | awk -F ',' '{print $1}')
     user=$(echo "${openssh_pid}" | awk -F ',' '{print $2}')
     ip=$(echo "${openssh_pid}" | awk -F ',' '{print $3}')
